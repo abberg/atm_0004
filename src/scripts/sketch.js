@@ -72,7 +72,7 @@
 			},
 			
 			draw = function(interpolation){
-				result.rotation.y += 0.007;
+				result.rotation.y += 0.005;
 			}
 
 		return{
