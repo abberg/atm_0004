@@ -5,42 +5,74 @@
 		var scene = three.scene(),
 			camera = three.camera(),
 			renderer = three.renderer(),
-			container,
-			model,
-			previousModel,
+			//controls = new THREE.OrbitControls( camera ),
+			result,
 
 			init = function(){
-				var geometry = new THREE.BoxGeometry( 1, 1, 1 ),
-					material = new THREE.MeshLambertMaterial( { color: 0xffffff } ),
-					mesh = new THREE.Mesh( geometry, material ),
-					directionalLight = new THREE.DirectionalLight( 0xffffff );
-
-				container = new THREE.Object3D();
-				model = new THREE.Object3D();
-				previousModel = model.clone();
+				var geometry,
+					material,
+					mesh,
+					sphereBSP,
+					sphereBSP2,
+					boxBSP,
+					boxBSP2,
+					directionalLight = new THREE.DirectionalLight( 0x005566 ),
+					keyLight = new THREE.SpotLight(0xffffff);
 				
-				container.add(mesh);
-				scene.add( container );
+
+				scene.add(keyLight);
+				
+				keyLight.intensity = 1;
+				keyLight.distance = 0;
+				keyLight.angle = Math.PI / 3;
+				keyLight.exponent = 3;
+				keyLight.decay = 2;
+				
+				keyLight.position.set( 0, 10, 5);
+				keyLight.target.position.set(0, 0, -5);
+				//var slh = new THREE.SpotLightHelper(keyLight);
+				//scene.add(slh);
 
 				scene.add(directionalLight);
-				directionalLight.position.set( 1, 1, 1 );
+				directionalLight.position.set( 0, -1, 0 );
 
-				renderer.setClearColor( 0x333333 );
 
-				camera.position.z = 3;
+				geometry = new THREE.PlaneBufferGeometry( 30, 10, 1 );
+				material = new THREE.MeshPhongMaterial( { color: 0xffffff } );
+				mesh = new THREE.Mesh( geometry, material );
+
+				mesh.position.z = -5;
+				scene.add( mesh );
+
+				geometry = new THREE.IcosahedronGeometry( 1.5, 2 );
+				mesh = new THREE.Mesh( geometry );
+				sphereBSP = new ThreeBSP( mesh );
+
+				geometry = new THREE.BoxGeometry( 4, 4, 2);
+				mesh = new THREE.Mesh( geometry );
+				mesh.position.set(0, 0, -1);
+				boxBSP = new ThreeBSP( mesh );
+
+				geometry = new THREE.IcosahedronGeometry( 1.4 , 2);
+				mesh = new THREE.Mesh( geometry);
+				sphereBSP2 = new ThreeBSP( mesh );
+
+				result = sphereBSP
+							.subtract( boxBSP )
+							.subtract( sphereBSP2 )
+							.toMesh( new THREE.MeshPhongMaterial({color: 0x667777, shininess: 40}) );
+
+				scene.add(result);
+
+				camera.position.z = 3.25;
 			},
 			
 			update = function(timestep){
-				var rotationVelocity = 0.001;
-				
-				model.clone(previousModel);
-				model.rotation.x += rotationVelocity * timestep;
-				model.rotation.y += rotationVelocity * timestep;
-				
+				//controls.update();
 			},
 			
 			draw = function(interpolation){
-				THREE.Quaternion.slerp ( previousModel.quaternion, model.quaternion, container.quaternion, interpolation );
+				result.rotation.y += 0.007;
 			}
 
 		return{
