@@ -1,4 +1,4 @@
-(function(ab){
+ (function(ab){
 	"use strict";
 	ab.sketch  = function(three){
 
@@ -6,7 +6,7 @@
 			camera = three.camera(),
 			renderer = three.renderer(),
 			//controls = new THREE.OrbitControls( camera ),
-			result,
+			shells = [],
 
 			init = function(){
 				var geometry,
@@ -16,6 +16,7 @@
 					sphereBSP2,
 					boxBSP,
 					boxBSP2,
+					result,
 					directionalLight = new THREE.DirectionalLight( 0x005566 ),
 					keyLight = new THREE.SpotLight(0xffffff);
 				
@@ -35,7 +36,6 @@
 
 				scene.add(directionalLight);
 				directionalLight.position.set( 0, -1, 0 );
-
 
 				geometry = new THREE.PlaneBufferGeometry( 30, 10, 1 );
 				material = new THREE.MeshPhongMaterial( { color: 0xffffff } );
@@ -62,21 +62,37 @@
 							.subtract( sphereBSP2 )
 							.toMesh( new THREE.MeshPhongMaterial({color: 0x667777, shininess: 40}) );
 
-				scene.add(result);
+				for(var i = 2; i < 12; i++){
+					var current = result.clone();
+					current.scale.multiplyScalar(i/12);
+					current.rotation.z = ( Math.PI * 2 ) * ( i / 10 );
+					scene.add(current);
+					shells.push(current);
+				}
 
-				camera.position.z = 3.25;
+				camera.position.z = 3;
 			},
 			
+			framestart = function(timestamp){
+				for(var i = 0; i < 10; i++){
+					var current = shells[i];
+					current.rotation.x = ( 5 * ( Math.sin( timestamp  * 0.001 ) ) * (10-i)/10) ;
+					current.rotation.y = Math.PI + ( 5 * ( Math.sin( timestamp * 0.001 ) * (10-i)/10) );
+					//current.rotation.z += 0.01;
+				}
+			},
+
 			update = function(timestep){
 				//controls.update();
 			},
 			
 			draw = function(interpolation){
-				result.rotation.y += 0.005;
+				//result.rotation.y += 0.005;
 			}
 
 		return{
 			init: init,
+			framestart: framestart,
 			update: update,
 			draw: draw
 		}

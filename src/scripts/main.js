@@ -6,6 +6,13 @@
 		three = ab.threeBase(),
 		sketch = ab.sketch(three);
 
+	loop.addEventListener('framestart', function(event){
+
+		var timestamp = event.detail.timestamp;
+		sketch.framestart(timestamp);
+	
+	})
+
 	loop.addEventListener('frameupdate', function(event){
 
 		var timestep = event.detail.timestep;
