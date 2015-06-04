@@ -18,7 +18,8 @@
 					boxBSP2,
 					result,
 					directionalLight = new THREE.DirectionalLight( 0x005566 ),
-					keyLight = new THREE.SpotLight(0xffffff);
+					keyLight = new THREE.SpotLight(0xffffff),
+					pointLight = new THREE.PointLight( 0xff0099, 1.0, 3 );
 				
 
 				scene.add(keyLight);
@@ -37,6 +38,8 @@
 				scene.add(directionalLight);
 				directionalLight.position.set( 0, -1, 0 );
 
+				scene.add( pointLight );
+
 				geometry = new THREE.PlaneBufferGeometry( 30, 10, 1 );
 				material = new THREE.MeshPhongMaterial( { color: 0xffffff } );
 				mesh = new THREE.Mesh( geometry, material );
@@ -53,19 +56,28 @@
 				mesh.position.set(0, 0, -1);
 				boxBSP = new ThreeBSP( mesh );
 
+				geometry = new THREE.BoxGeometry( 4, 2, 4);
+				mesh = new THREE.Mesh( geometry );
+				mesh.position.set(0, -1, 0);
+				boxBSP2 = new ThreeBSP( mesh );
+
 				geometry = new THREE.IcosahedronGeometry( 1.4 , 2);
 				mesh = new THREE.Mesh( geometry);
 				sphereBSP2 = new ThreeBSP( mesh );
 
 				result = sphereBSP
 							.subtract( boxBSP )
+							.subtract( boxBSP2 )
 							.subtract( sphereBSP2 )
 							.toMesh( new THREE.MeshPhongMaterial({color: 0x667777, shininess: 40}) );
 
-				for(var i = 2; i < 12; i++){
+				for(var i = 2; i < 14; i++){
 					var current = result.clone();
-					current.scale.multiplyScalar(i/12);
-					current.rotation.z = ( Math.PI * 2 ) * ( i / 10 );
+					current.scale.multiplyScalar(i/14);
+					current.rotation.x =  Math.random() * ( Math.PI * 2 );
+					current.rotation.y =  Math.random() * ( Math.PI * 2 );
+					current.userData.xVelocity = Math.random() * 0.04 - 0.02;
+					current.userData.yVelocity = Math.random() * 0.04 - 0.02;
 					scene.add(current);
 					shells.push(current);
 				}
@@ -74,16 +86,15 @@
 			},
 			
 			framestart = function(timestamp){
-				for(var i = 0; i < 10; i++){
-					var current = shells[i];
-					current.rotation.x = ( 5 * ( Math.sin( timestamp  * 0.001 ) ) * (10-i)/10) ;
-					current.rotation.y = Math.PI + ( 5 * ( Math.sin( timestamp * 0.001 ) * (10-i)/10) );
-					//current.rotation.z += 0.01;
-				}
+				
 			},
 
 			update = function(timestep){
 				//controls.update();
+				shells.forEach(function(shell){
+					shell.rotation.x += shell.userData.xVelocity;
+					shell.rotation.z += shell.userData.yVelocity;
+				});
 			},
 			
 			draw = function(interpolation){
