@@ -24,7 +24,6 @@
 
 		var interpolation = event.detail.interpolation;
 		sketch.draw(interpolation);
-		three.renderer().render(three.scene(), three.camera());
 
 	});
 
