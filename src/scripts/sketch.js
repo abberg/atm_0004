@@ -3,12 +3,18 @@
 	ab.sketch  = function(three){
 
 		var scene = three.scene(),
+			occlusionScene = new THREE.Scene(),
 			camera = three.camera(),
 			renderer = three.renderer(),
 			composer,
 			lightImposter,
 			glow,
 			ring,
+			occlusionlightImposter,
+			godRays,
+			add,
+			occlusionComposer,
+			finalComposer,
 			//controls = new THREE.OrbitControls( camera ),
 			shells = [],
 
@@ -16,6 +22,9 @@
 				var geometry,
 					material,
 					mesh,
+					occlusionMesh,
+					model,
+					previousModel,
 					sphereBSP,
 					sphereBSP2,
 					boxBSP,
@@ -77,6 +86,11 @@
 				ring = new THREE.Mesh( geometry, material );
 				scene.add( ring );
 
+				geometry = new THREE.IcosahedronGeometry( 0.5, 2 );
+				material = new THREE.MeshBasicMaterial( { color: 0xff99dd } );
+				occlusionlightImposter = new THREE.Mesh( geometry, material );
+				occlusionScene.add( occlusionlightImposter );
+
 				geometry = new THREE.IcosahedronGeometry( 1.5, 2 );
 				mesh = new THREE.Mesh( geometry );
 				sphereBSP = new ThreeBSP( mesh );
@@ -102,21 +116,37 @@
 							.toMesh( new THREE.MeshPhongMaterial({color: 0x667777, shininess: 40}) );
 
 				for(var i = 6; i < 14; i++){
-					var current = result.clone();
-					current.scale.multiplyScalar(i/14);
-					current.rotation.x =  Math.random() * ( Math.PI * 2 );
-					current.rotation.y =  Math.random() * ( Math.PI * 2 );
-					current.userData.xVelocity = Math.random() * 0.04 - 0.02;
-					current.userData.yVelocity = Math.random() * 0.04 - 0.02;
-					current.castShadow = true;
-					current.receiveShadow = true;
-					scene.add(current);
-					shells.push(current);
+					
+					mesh = result.clone();
+					mesh.scale.multiplyScalar(i/14);
+					scene.add(mesh);
+
+					occlusionMesh = mesh.clone();
+					occlusionMesh.material = new THREE.MeshBasicMaterial({color: 0x000000});
+					occlusionScene.add(occlusionMesh);
+
+					mesh.castShadow = true;
+					mesh.receiveShadow = true;
+
+					model = new THREE.Object3D();
+					model.rotation.x =  Math.random() * ( Math.PI * 2 );
+					model.rotation.y =  Math.random() * ( Math.PI * 2 );
+					previousModel = model.clone();
+
+					shells.push({
+						mesh:mesh, 
+						occlusionMesh: occlusionMesh, 
+						model: model,
+						previousModel: previousModel,
+						xVelocity: Math.random() * 0.002 - 0.001, 
+						yVelocity: Math.random() * 0.002 - 0.001
+					});
 				}
 
 				camera.position.z = 3;
 
 				// postprocessing
+				/*
 				renderer.autoClear = false;
 
 				composer = new THREE.EffectComposer( renderer );
@@ -132,7 +162,83 @@
 				});
 				effectFXAA.renderToScreen = true;
 				composer.addPass( effectFXAA );
+				*/
 
+				var width = window.innerWidth,
+					height = window.innerHeight,
+					halfWidth = width * 0.5,
+					halfHeight = height * 0.5,
+					occlusionRender,
+					horizontalBlur,
+					verticalBlur,
+					blurSize,				
+					occlusionRenderTarget,
+					sceneRender,
+					FXAA;
+	 
+				occlusionRender = new THREE.RenderPass( occlusionScene, camera );
+
+				horizontalBlur = new THREE.ShaderPass( THREE.HorizontalBlurShader );
+				verticalBlur = new THREE.ShaderPass( THREE.VerticalBlurShader );
+					
+				blurSize = 3;
+				 
+				horizontalBlur.uniforms.h.value = blurSize / width;
+				verticalBlur.uniforms.v.value = blurSize / height;
+				 
+				godRays = new THREE.ShaderPass( THREE.Extras.Shaders.Godrays );
+				 
+				occlusionRenderTarget = new THREE.WebGLRenderTarget( halfWidth, halfHeight, { minFilter: THREE.LinearFilter } );
+
+				occlusionComposer = new THREE.EffectComposer( renderer, occlusionRenderTarget );
+				occlusionComposer.addPass( occlusionRender );
+				occlusionComposer.addPass( horizontalBlur );
+				occlusionComposer.addPass( verticalBlur );
+				occlusionComposer.addPass( horizontalBlur );
+				occlusionComposer.addPass( verticalBlur );
+				occlusionComposer.addPass( godRays );
+
+				sceneRender = new THREE.RenderPass( scene, camera );
+				 
+				add = new THREE.ShaderPass( THREE.Extras.Shaders.Additive );
+				
+				FXAA = new THREE.ShaderPass( THREE.FXAAShader );
+  				FXAA.uniforms.resolution.value.set( 1 / renderer.domElement.width, 1 / renderer.domElement.height );
+				FXAA.renderToScreen = true;
+				 
+				finalComposer = new THREE.EffectComposer( renderer );
+				finalComposer.addPass( sceneRender );
+				finalComposer.addPass( add );
+				finalComposer.addPass( FXAA );
+
+				godRays.uniforms.fExposure.value 	= 0.13;
+				godRays.uniforms.fDecay.value 		= 0.93;
+				godRays.uniforms.fDensity.value 	= 1.0; 
+				godRays.uniforms.fWeight.value 		= 1.0;
+
+				window.addEventListener('resize', function(){
+
+					width = window.innerWidth,
+					height = window.innerHeight,
+					halfWidth = width * 0.5,
+					halfHeight = height * 0.5,
+
+					occlusionRenderTarget = new THREE.WebGLRenderTarget( halfWidth, halfHeight, { minFilter: THREE.LinearFilter } );
+
+					horizontalBlur.uniforms.h.value = blurSize / width;
+					verticalBlur.uniforms.v.value = blurSize / height;
+
+					FXAA.uniforms.resolution.value.set( 1 / renderer.domElement.width, 1 / renderer.domElement.height );
+				});
+
+				/*
+				var gui = new dat.GUI();
+	  			gui.add(godRays.uniforms.fExposure, 'value', 0, 1).name('Exposure');
+	  			gui.add(godRays.uniforms.fDecay, 'value', 0, 1).name('Decay');
+	  			gui.add(godRays.uniforms.fDensity, 'value', 0, 1).name('Density');
+	  			gui.add(godRays.uniforms.fWeight, 'value', 0, 1).name('Weight');
+	  			gui.add(godRays.uniforms.fClamp, 'value', 0, 1).name('Clamp');
+				*/
 			},
 			
 			framestart = function(timestamp){
@@ -142,8 +248,9 @@
 			update = function(timestep){
 				//controls.update();
 				shells.forEach(function(shell){
-					shell.rotation.x += shell.userData.xVelocity;
-					shell.rotation.z += shell.userData.yVelocity;
+					shell.previousModel.rotation.copy(shell.model.rotation)
+					shell.model.rotation.x += shell.xVelocity * timestep;
+					shell.model.rotation.y += shell.yVelocity * timestep;
 				});
 
 				var random = Math.random();
@@ -169,10 +276,19 @@
 				ring.material.opacity = glow.material.opacity;
 				ring.scale.x = ring.scale.y = ring.scale.z = 1 - glow.material.opacity;
 
+				add.uniforms.tAdd.value = occlusionComposer.renderTarget1;
+
 			},
 			
 			draw = function(interpolation){
-				composer.render();
+				
+				shells.forEach(function(shell){
+					THREE.Quaternion.slerp(shell.previousModel.quaternion, shell.model.quaternion, shell.mesh.quaternion, interpolation);
+					THREE.Quaternion.slerp(shell.previousModel.quaternion, shell.model.quaternion, shell.occlusionMesh.quaternion, interpolation);
+				});
+				
+				occlusionComposer.render();
+				finalComposer.render();
 				//renderer.render(scene, camera);
 			}
 
